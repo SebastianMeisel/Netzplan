@@ -114,7 +114,6 @@ class Projekt(object):
             for NF in AP.Nachfolger:
                 VorwaertsRechnen(NF[0])
         def RueckwaertsRechnen(AP: object):
-            print(AP.ID)
             AP.getSXZ()
             for VG in AP.Vorgaenger:
                 # ???
