@@ -171,32 +171,35 @@ class Netzplan(object):
 
         # Zeichnung um Netzplan aufzunehmen
         self.Zeichnung = ImageDraw.Draw(self.a4image)
-        # Liste der Knoten
-        self.IDs = 0 # Knoten-IDs
-        self.Knoten = []
+        # Listen: Knoten Raster
+        self.Knoten = [] # Knoten auf der Zeichnung
+        self.Raster = [] # Liste der Belegten Positionen im Raster um Überschneidungen zu vermeiden
 
     # Knoten hinzufügen    
     def NeuerKnoten(self, x: int, y:int, AP: object):    
-        self.IDs = AP.ID # ID des Knotens entspricht der, des dargestellten Knotens
         # Knoten-Objekt …
-        K = Knoten(self.IDs, x, y, AP, self.Zeichnung) # … anlegen
+        K = Knoten(AP.ID, x, y, AP, self.Zeichnung)    # … anlegen
         K.Zeichnen()                                   # … zeichnen
         self.Knoten.append(K.ID)                       # … (ID) in Knoten-Liste des Netzplans eintragen
+        self.Raster.append(str(x)+str(y))
         AP.Knoten = K                                  # … dem ArbeitsPacket zuordnen
         
     # Netzplan zeichnen    
     def Zeichnen(self, Projekt: object):
         x = .5
-        y = .5
+        y = .5        
         Projekt.DurchRechnen()
         AP = Projekt.ArbeitsPackete[0]
         self.NeuerKnoten(x,y, AP) 
         # Hilfsfunktion
         def NachfolgerZeichnen(x: int, y: int, AP: object):
             x += 1
+            # Wenn Rasterpunkt belegt, dann neue Zeile anfangen.
             for NF in reversed(sorted(AP.Nachfolger, key=lambda liste: liste[-1])) :
                 if NF[0].ID not in self.Knoten:
                     y += 1
+                    while str(x)+str(y) in self.Raster:
+                        y += 1 
                     self.NeuerKnoten(x,y, NF[0])
                     # Nachfolger zeichnen
                     NachfolgerZeichnen(x,y-1, NF[0])
@@ -228,9 +231,24 @@ class Netzplan(object):
 
         NachfolgerZeichnen(x,y-1, AP)
         ##########################################
+        # Legende
+        L = Legende()
+        self.NeuerKnoten(8.5,11.25, L)
+        x = 10.5*AP.Knoten.dx - (30*12)
+        y = 11.25 * AP.Knoten.dy - AP.Knoten.uy
+        for Label, Erklaerung in [
+                ["ID", "Identifier"],
+                ["D", "Dauer"],
+                ["FAZ/FEZ", "Früheste Anfangs-, bzw. Endzeit"],
+                ["SAZ/SEZ", "Späteste Anfangs-, bzw. Endzeit"],
+                ["GP/FP", "Gesamt-, bzw. Freier Puffer"]
+        ]:
+            y += 30
+            self.Zeichnung.text((x,y), "{Label:<10}: {Erklaerung:<20}".format(Label=Label, Erklaerung=Erklaerung), (0,0,0), font=self.font)
+        ##########################################
         # Arbeitspacket-Liste
-        y = self.y - y*AP.Knoten.dy - (30*(len(self.Knoten)+1))
-        x = x*AP.Knoten.dx
+        y = self.y - AP.Knoten.dy - (30*(len(self.Knoten)+1))
+        x = AP.Knoten.dx
         R = "Ressourcen" if len(Projekt.Ressourcen) > 0 else "" # Spalte Ressourcen nur, wenn Ressourcen geplant
         self.Zeichnung.text((x,y),"ID {A:<6}: {B:<25}: {C:^7}: {D:<40}".format(A="", B="Bezeichnung", C="Dauer", D=R), (0,0,0), font=self.bold_font)
         for AP in Projekt.ArbeitsPackete:
@@ -254,6 +272,21 @@ class Netzplan(object):
         ## als PDF speichern
         self.a4image.save(self.Name+'.pdf', 'PDF', dpi=(300,300))
 
+################################################################
+# Pseudo-Object für Legende
+class Legende(object):  
+        ID = "ID" 
+        Bezeichnung = "Bezeichnung"
+        ###############################
+        Dauer = "D"
+        FAZ = "FAZ" # Früheste Anfangszeit
+        FEZ = "FEZ" # Früheste Endzeit
+        SAZ = "SAZ" # Späteste Anfangszeit
+        SEZ = "SEZ" # Späteste Endzeit
+        GP  = "GP" # Gesamtpuffer
+        FP  = "FP" # Freier Puffer
+
+        
 #################################################################
 # Knoten-Object
 class Knoten(object):
@@ -275,7 +308,6 @@ class Knoten(object):
         # Schriftart
         self.font = ImageFont.truetype("SourceCodePro-Light.ttf", 24)
         self.bold_font = ImageFont.truetype("SourceCodePro-Bold.ttf", 24)
-        
         
     # Knoten zeichnen
     def Zeichnen(self):
@@ -299,7 +331,7 @@ class Knoten(object):
         xb = xa + 3*self.ux
         yb = ya + self.uy
         self.Zeichnung.rectangle((xa,ya,xb,yb), fill=(255,255,255), outline=(0,0,0,0))
-        self.Zeichnung.text((xa+2,ya+1), "{a:^12}".format(a='AP '+str(self.AP.ID)) ,(0,0,0), font=self.font)
+        self.Zeichnung.text((xa+2,ya+1), "{a:^12}".format(a=str(self.AP.ID)) ,(0,0,0), font=self.font)
         # Dauer
         xa = self.dx* self.x
         ya = yb
