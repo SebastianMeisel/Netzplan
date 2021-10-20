@@ -8,10 +8,11 @@ version = 0.1
 class ArbeitsPacket(object):  
 
     # Konstruktor #############################################
-    def __init__(self, ID, Bezeichnung: str, PT: int):
+    def __init__(self, ID, Bezeichnung: str, PT: int, Projekt: object):
         self.ID = ID 
         self.Bezeichnung = Bezeichnung
         self.PT = PT # Personentage
+        self.Projekt = Projekt # einem Projekt zuordnen
         ###############################
         self.Dauer = self.PT
         self.FAZ = 0 # Früheste Anfangszeit
@@ -21,26 +22,26 @@ class ArbeitsPacket(object):
         self.GP  = 0 # Gesamtpuffer
         self.FP  = 0 # Freier Puffer
         self.Nachfolger = [] # Liste der Nachfolger
-        self.Vorgaenger = [] # Liste der Vorgänger
+        self.Vorgänger = [] # Liste der Vorgänger
         self.Knoten     = None # Knoten im Netzplan
         self.Ressourcen = []
 
     # Vorgänger hinzufügen
-    def Folgt(self, Vorgaenger: object or list):
+    def Folgt(self, Vorgänger: str or list):
         # Unterscheide ob einzelnes Arbeitspacket oder Liste
-        if type(Vorgaenger) is list:
-            self.Vorgaenger.extend(Vorgaenger) # Vorgänger-Liste hinzufügen
-            for V in Vorgaenger:
-                V.Nachfolger.append([self, 1]) # Zum Vorgänger als Nachfolger hinzufügen + Zähler für Nachfolger vorbereiten
+        if type(Vorgänger) is list:
+            for V in Vorgänger:
+                self.Vorgänger.append(self.Projekt.ArbeitsPackete[V])
+                self.Projekt.ArbeitsPackete[V].Nachfolger.append([self, 1]) # Zum Vorgänger als Nachfolger hinzufügen + Zähler für Nachfolger vorbereiten
         else:
-            self.Vorgaenger.append(Vorgaenger) # Vorgänger hinzufügen
-            Vorgaenger.Nachfolger.append([self, 1]) # Zum Vorgänger als Nachfolger hinzufügen
+            self.Vorgänger.append(self.Projekt.ArbeitsPackete[Vorgänger]) # Vorgänger hinzufügen
+            self.Projekt.ArbeitsPackete[Vorgänger].Nachfolger.append([self, 1]) # Zum Vorgänger als Nachfolger hinzufügen
 
     # Früheste Anfangs- und Endzeit bestimmen    
     def getFXZ(self):
         # Früheste Anfangszeit
-        if len(self.Vorgaenger) > 0:
-            self.FAZ = max(AP.FEZ for AP in self.Vorgaenger)
+        if len(self.Vorgänger) > 0:
+            self.FAZ = max(AP.FEZ for AP in self.Vorgänger)
         # Frühester Endzeitpunkt
         self.FEZ = self.Dauer + self.FAZ
 
@@ -69,14 +70,15 @@ class ArbeitsPacket(object):
 
 class Ressource(object):
     # Konstrukor
-    def __init__(self, Name:str):
+    def __init__(self, Name:str, Projekt:object):
         self.Name = Name
+        self.Projekt = Projekt # Projekt zuordnen
         #################
         self.ArbeitsPackete = {} # Arbeitspackete und Kapazität, die der Ressource zugeordnet werden
 
-    def NeuesArbeitsPacket(self, AP: object, Kapazitaet=100):
-        self.ArbeitsPackete[str(AP.ID)] = Kapazitaet
-        AP.Ressourcen.append(self)
+    def NeuesArbeitsPacket(self, AP: str, Kapazität=100):
+        self.ArbeitsPackete[self.Projekt.ArbeitsPackete[AP].ID] = Kapazität
+        self.Projekt.ArbeitsPackete[AP].Ressourcen.append(self)
         
         
 #######################################################################################
@@ -89,60 +91,63 @@ class Projekt(object):
         self.ID = ID
         self.Bezeichnung = Bezeichnung
         ##############
-        self.ArbeitsPackete = []
+        self.ArbeitsPackete = {}
         self.KritischerPfad = []
         self.AP_ID = 0 # Arbeitspacket-Identifier automatisch hochzählen
-        self.Ressourcen = []
+        self.Ressourcen = {}
         
     # Arbeitspaket hinzufügen
-    def NeuesArbeitsPacket(self, Bezeichnung: str, PT: int, ID=None) -> object:
+    def NeuesArbeitsPacket(self, Bezeichnung: str, PT: int, ID=None):
         self.AP_ID += 1
-        AP = ArbeitsPacket(ID if ID else self.AP_ID, Bezeichnung, PT)
-        self.ArbeitsPackete.append(AP)
-        return(AP)
+        AP = ArbeitsPacket(ID if ID else self.AP_ID, Bezeichnung, PT, self)
+        self.ArbeitsPackete[str(AP.ID)] = AP
 
-    def NeueRessource(self, Name:str) -> object:
-        R = Ressource(Name)
-        self.Ressourcen.append(R)
-        return(R)
+    # Ressource hinzufügen
+    def NeueRessource(self, ID:str, Name:str):
+        R = Ressource(Name, self)
+        self.Ressourcen[ID] = R 
 
+    # Ressource zuweisen
+    def RessourceZuweisen(self, RessourcenID: str, ArbeitsPacketID: str, Kapazität = 100):
+        self.Ressourcen[RessourcenID].NeuesArbeitsPacket(ArbeitsPacketID, Kapazität)
+        
     # Vorwärts- und rückwarts-rechnen
     def DurchRechnen(self):
         #Hilfsfunktionen
-        def VorwaertsRechnen(AP: object) -> object:
+        def VorwärtsRechnen(AP: object) -> object:
             AP.getFXZ()
             for NF in AP.Nachfolger:
-                VorwaertsRechnen(NF[0])
-        def RueckwaertsRechnen(AP: object):
+                VorwärtsRechnen(NF[0])
+        def RueckwärtsRechnen(AP: object):
             AP.getSXZ()
-            for VG in AP.Vorgaenger:
+            for VG in AP.Vorgänger:
                 # ???
                 for i,NF in enumerate(VG.Nachfolger):
                     if type(NF[0]) is not tuple:
                         if NF[0].ID == AP.ID:   
                             VG.Nachfolger[i] = (AP, 1 if len(AP.Nachfolger) == 0 else max(t[-1] for t in AP.Nachfolger)+1) 
                 # Wenn Vorgänger noch nicht berechnet ist dort weitermachen
-                RueckwaertsRechnen(VG)
+                RueckwärtsRechnen(VG)
 
         # Kapazität je Arbeitspacket berechnen -> Dauer berechnen
-        for AP in self.ArbeitsPackete:
-            PersonenKapazitaet = 0  # Personen * Kapazität%
+        for AP in list(self.ArbeitsPackete.values()):
+            PersonenKapazität = 0  # Personen * Kapazität%
             # Personen-Kapazität berechnen
             for R in AP.Ressourcen:
-                PersonenKapazitaet += R.ArbeitsPackete[str(AP.ID)] / 100
+                PersonenKapazität += R.ArbeitsPackete[AP.ID] / 100
             # Wenn keine Resourchen zugeordnet sind, dann mit einer Person, 100% rechnen
-            if PersonenKapazitaet == 0:
-                PersonenKapazitaet = 1
+            if PersonenKapazität == 0:
+                PersonenKapazität = 1
             # Dauer = PersonenTage / PersonenKapazität
-            AP.Dauer = int(AP.PT / PersonenKapazitaet) + (AP.PT % PersonenKapazitaet>0) # Aufrunden 
+            AP.Dauer = int(AP.PT / PersonenKapazität) + (AP.PT % PersonenKapazität>0) # Aufrunden 
         # Vorwärts- und Rückwärtsrechnen
-        AP = self.ArbeitsPackete[0]
-        VorwaertsRechnen(AP)
-        for ap in reversed(self.ArbeitsPackete):
+        AP = list(self.ArbeitsPackete.values())[0]
+        VorwärtsRechnen(AP)
+        for ap in reversed(list(self.ArbeitsPackete.values())):
             if len(ap.Nachfolger) == 0:
                 AP = ap
                 break
-        RueckwaertsRechnen(AP)
+        RueckwärtsRechnen(AP)
 
     # Kritischen Pfad ausgeben    
     def ZeigeKritischenPfad(self):
@@ -166,8 +171,9 @@ class Netzplan(object):
                          (self.x, self.y),       # A4 bei 72dpi
                          (255, 255, 255))  # Weiß
         # Schriftart
-        self.font = ImageFont.truetype("SourceCodePro-Light.ttf", 24)
+        self.font = ImageFont.truetype("SourceCodePro-Light.ttf", 24, 0)
         self.bold_font = ImageFont.truetype("SourceCodePro-Bold.ttf", 24)
+        self.heading_font = ImageFont.truetype("SourceCodePro-Bold.ttf", 36)
 
         # Zeichnung um Netzplan aufzunehmen
         self.Zeichnung = ImageDraw.Draw(self.a4image)
@@ -189,7 +195,7 @@ class Netzplan(object):
         x = .5
         y = .5        
         Projekt.DurchRechnen()
-        AP = Projekt.ArbeitsPackete[0]
+        AP = list(Projekt.ArbeitsPackete.values())[0]
         self.NeuerKnoten(x,y, AP) 
         # Hilfsfunktion
         def NachfolgerZeichnen(x: int, y: int, AP: object):
@@ -236,7 +242,7 @@ class Netzplan(object):
         self.NeuerKnoten(8.5,11.25, L)
         x = 10.5*AP.Knoten.dx - (30*12)
         y = 11.25 * AP.Knoten.dy - AP.Knoten.uy
-        for Label, Erklaerung in [
+        for Label, Erklärung in [
                 ["ID", "Identifier"],
                 ["D", "Dauer"],
                 ["FAZ/FEZ", "Früheste Anfangs-, bzw. Endzeit"],
@@ -244,19 +250,21 @@ class Netzplan(object):
                 ["GP/FP", "Gesamt-, bzw. Freier Puffer"]
         ]:
             y += 30
-            self.Zeichnung.text((x,y), "{Label:<10}: {Erklaerung:<20}".format(Label=Label, Erklaerung=Erklaerung), (0,0,0), font=self.font)
+            self.Zeichnung.text((x,y), "{Label:<10}: {Erklärung:<20}".format(Label=Label, Erklärung=Erklärung), (0,0,0), font=self.font)
         ##########################################
         # Arbeitspacket-Liste
-        y = self.y - AP.Knoten.dy - (30*(len(self.Knoten)+1))
-        x = AP.Knoten.dx
+        y = self.y - AP.Knoten.dy - (30*(len(self.Knoten)+1)) - 35 # Unterer Seitenrand - 30px pro Zeile - 35px für Projektname
+        x = AP.Knoten.dx                                           # Auf X-Achse am ersten Knoten ausrichten 
         R = "Ressourcen" if len(Projekt.Ressourcen) > 0 else "" # Spalte Ressourcen nur, wenn Ressourcen geplant
+        self.Zeichnung.text((x,y),"Projekt: {Name:<60}".format(Name=Projekt.Bezeichnung), (0,0,0), font=self.heading_font)
+        y += 40
         self.Zeichnung.text((x,y),"ID {A:<6}: {B:<25}: {C:^7}: {D:<40}".format(A="", B="Bezeichnung", C="Dauer", D=R), (0,0,0), font=self.bold_font)
-        for AP in Projekt.ArbeitsPackete:
+        for AP in list(Projekt.ArbeitsPackete.values()):
             y += 30
             # Ressourcen checken
             Ressourcen = ""
             i = 0 # zähle Ressourcen des Arbeitspackets
-            for R in Projekt.Ressourcen:
+            for R in list(Projekt.Ressourcen.values()):
                 if str(AP.ID) in R.ArbeitsPackete.keys():
                     i += 1
                     if i > 1:
@@ -271,6 +279,11 @@ class Netzplan(object):
     def PdfExport(self):
         ## als PDF speichern
         self.a4image.save(self.Name+'.pdf', 'PDF', dpi=(300,300))
+
+    # JPG-Export
+    def JPGExport(self):
+        ## als JPG speichern
+        self.a4image.save(self.Name+'.jpg', dpi=(300,300))
 
 ################################################################
 # Pseudo-Object für Legende
