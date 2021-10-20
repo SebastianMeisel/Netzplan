@@ -118,16 +118,17 @@ class Projekt(object):
             AP.getFXZ()
             for NF in AP.Nachfolger:
                 VorwärtsRechnen(NF[0])
-        def RueckwärtsRechnen(AP: object):
+        def RückwärtsRechnen(AP: object):
             AP.getSXZ()
+            if AP.GP == 0 and not AP.ID in self.KritischerPfad:
+                self.KritischerPfad.append(AP.ID)
             for VG in AP.Vorgänger:
-                # ???
                 for i,NF in enumerate(VG.Nachfolger):
                     if type(NF[0]) is not tuple:
                         if NF[0].ID == AP.ID:   
                             VG.Nachfolger[i] = (AP, 1 if len(AP.Nachfolger) == 0 else max(t[-1] for t in AP.Nachfolger)+1) 
                 # Wenn Vorgänger noch nicht berechnet ist dort weitermachen
-                RueckwärtsRechnen(VG)
+                RückwärtsRechnen(VG)
 
         # Kapazität je Arbeitspacket berechnen -> Dauer berechnen
         for AP in list(self.ArbeitsPackete.values()):
@@ -147,14 +148,16 @@ class Projekt(object):
             if len(ap.Nachfolger) == 0:
                 AP = ap
                 break
-        RueckwärtsRechnen(AP)
+        RückwärtsRechnen(AP)
 
     # Kritischen Pfad ausgeben    
     def ZeigeKritischenPfad(self):
         self.DurchRechnen()
         print("Kritischer Pfad: [ ", end="")
-        for AP in reversed(self.KritischerPfad):
-            print(AP.ID, end=" ")
+        for i, AP_ID in enumerate(reversed(self.KritischerPfad)):
+            print(AP_ID, end=" ")
+            if i < len(self.KritischerPfad)-1:
+                print(" - ", end="")
         print("]")
 
 ####################################################################       

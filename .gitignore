@@ -130,3 +130,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/Netzplan.Beispiel1.py~
+/netzplan.py~

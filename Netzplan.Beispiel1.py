@@ -53,8 +53,9 @@ P1.RessourceZuweisen("PL", "1.3.3")
 
 
 # Netzplan: Name der PDF
-N1 = Netzplan("Netzplan2")
+N1 = Netzplan("Netzplan")
 N1.Zeichnen(P1)
 N1.PdfExport()
 N1.JPGExport()
-print(N1.Name+" fertig!") # Nur dass wir wissen, dass es gelaufen ist. 
+
+P1.ZeigeKritischenPfad()
