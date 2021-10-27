@@ -1,0 +1,8 @@
+"Projekt";"ID";"Beschreibung";"Dauer";"Folgt"
+"Malochen";"A";"Ausschlafen";10;
+"Malochen";"B";"Schlummern";5;"A"
+"Malochen";"C";"Umdrehen";7;"B"
+"Malochen";"D";"Zudecken";2;"B"
+"Malochen";"E";"Strecken";1;"C"
+"Malochen";"F";"Gähnen";2;"E"
+"Malochen";"G";"Weiterschlafen";10;"D,F"
