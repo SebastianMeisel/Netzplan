@@ -1,4 +1,6 @@
 from PIL import Image, ImageDraw, ImageFont # Netzplan zeichnen und exportieren
+import csv                                # für CVS-Import
+import re
 
 # Netzplan berechnen und zeichnen
 version = 0.1
@@ -111,6 +113,32 @@ class Projekt(object):
     def RessourceZuweisen(self, RessourcenID: str, ArbeitsPacketID: str, Kapazität = 100):
         self.Ressourcen[RessourcenID].NeuesArbeitsPacket(ArbeitsPacketID, Kapazität)
         
+    # Arbeispaketlist als CSV importieren
+    def ImportiereArbeitsPacketListeVonCSV(self, Dateiname:str):
+        with open(Dateiname, newline='') as csvfile:
+            CSV = csv.DictReader(csvfile, delimiter=';', quotechar='"')
+            for Zeile in CSV: 
+                self.NeuesArbeitsPacket(Zeile["Beschreibung"], int(Zeile["Dauer"]), Zeile["ID"])
+                Folgt = Zeile["Folgt"].split(",")
+                if len(Folgt) == 1 and not Folgt[0] == '': 
+                    self.ArbeitsPackete[Zeile["ID"]].Folgt(Zeile["Folgt"])
+                elif Folgt[0] != '':
+                    self.ArbeitsPackete[Zeile["ID"]].Folgt(Folgt)
+    
+    # Ressourcen als CSV importieren
+    def ImportiereRessourcenVonCSV(self, Dateiname:str):
+        with open(Dateiname, newline='') as csvfile:
+            CSV = csv.DictReader(csvfile, delimiter=';', quotechar='"')
+            for Zeile in CSV:
+                R_ID=Zeile["ID"]
+                Name="{VN} {NN}".format(VN=Zeile["Vorname"], NN=Zeile["Nachname"])
+                self.NeueRessource(R_ID,Name)
+                for AP in Zeile["Arbeitspackete"].split(','):
+                    ID_K = AP.split(":", 1) # in ID und Kapazität aufspalten
+                    AP_ID = ID_K[0]         # ID 
+                    K = 100 if len(ID_K) == 1 else int(ID_K[1]) # Kapazität
+                    self.RessourceZuweisen(R_ID,AP_ID,K)
+
     # Vorwärts- und rückwarts-rechnen
     def DurchRechnen(self):
         #Hilfsfunktionen

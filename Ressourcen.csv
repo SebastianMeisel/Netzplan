@@ -1,3 +1,3 @@
-"Projekt";"ID";"Vorname";"Nachname";"Arbeitspackete"
-"Malochen";"SM";"Super";"Mann";"A,B:50,C:25,D,F,G"
-"Malochen";"PL";"Pipi";"Langstrumpf";"A,B:50,C:75,E,G"
+"ID";"Vorname";"Nachname";"Arbeitspackete";"Email"
+"SM";"Super";"Mann";"A,B:50,C:25,D,F,G";"super@mann.de"
+"PL";"Pipi";"Langstrumpf";"A,B:50,C:75,E,G";"pippi@villa-kunterbunt.sl"
