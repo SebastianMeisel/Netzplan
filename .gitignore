@@ -132,3 +132,7 @@ dmypy.json
 .pyre/
 /Netzplan.Beispiel1.py~
 /netzplan.py~
+/Malochen.jpg
+/Malochen.pdf
+*.py~
+*~

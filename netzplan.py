@@ -1,6 +1,8 @@
 from PIL import Image, ImageDraw, ImageFont # Netzplan zeichnen und exportieren
 import csv                                # für CVS-Import
 import re
+from openpyxl import load_workbook        # für Excel-Import
+from openpyxl.utils import get_column_letter # Spalten-Namen in Excel
 
 # Netzplan berechnen und zeichnen
 version = 0.1
@@ -138,6 +140,51 @@ class Projekt(object):
                     AP_ID = ID_K[0]         # ID 
                     K = 100 if len(ID_K) == 1 else int(ID_K[1]) # Kapazität
                     self.RessourceZuweisen(R_ID,AP_ID,K)
+
+    # Projekt aus Excel importieren
+    def ImportiereVonExcel(self, Dateiname:str):
+        Workbook =  load_workbook(filename=Dateiname)
+        def SpaltenVonTabelle(Tabelle):
+            return {
+                cell.value: {
+                    'Buchstabe': get_column_letter(cell.column),
+                    'Nummer': cell.column - 1
+                } for cell in Tabelle[1] if cell.value
+            }
+        # Projekt 
+        Tabelle = Workbook["Projekt"]
+        Spalten = SpaltenVonTabelle(Tabelle) or []
+        for AP,row in enumerate(Tabelle.rows):
+            if AP > 0:
+                self.AP_ID += 1
+                ID = Tabelle[Spalten['ID']['Buchstabe']][AP].value or str(AP_ID)
+                Beschreibung = Tabelle[Spalten['Beschreibung']['Buchstabe']][AP].value or ''
+                Dauer = Tabelle[Spalten['Dauer']['Buchstabe']][AP].value or 0
+                Folgt = Tabelle[Spalten['Folgt']['Buchstabe']][AP].value or ''
+                #
+                self.NeuesArbeitsPacket(Beschreibung, int(Dauer), ID)
+                # Vorgänger in Liste aufteilen
+                if len(Folgt.split(",")) == 1 and not Folgt.split(",")[0] == '':
+                    self.ArbeitsPackete[ID].Folgt(Folgt)
+                elif Folgt.split(",")[0] != '':
+                    for Vorgänger in Folgt.split(","):
+                        self.ArbeitsPackete[ID].Folgt(Vorgänger)
+        # Ressourcen
+        Tabelle = Workbook["Ressourcen"]
+        Spalten = SpaltenVonTabelle(Tabelle) if type(Tabelle) is not None else []
+        for R,row in enumerate(Tabelle.rows):
+            if R > 0:
+                R_ID = Tabelle[Spalten['ID']['Buchstabe']][R].value or ''
+                Name = "{VN} {NN}".format(VN=Tabelle[Spalten['Vorname']['Buchstabe']][R].value,
+                                          NN=Tabelle[Spalten['Nachname']['Buchstabe']][R].value) or ''
+                self.NeueRessource(R_ID,Name)
+                APs = Tabelle[Spalten['Arbeitspackete']['Buchstabe']][R].value or ''
+                for AP in APs.split(","):
+                    ID_K = AP.split(":", 1) # in ID und Kapazität aufspalten
+                    AP_ID = ID_K[0]         # Arbeitspacket-ID 
+                    K = 100 if len(ID_K) == 1 else int(ID_K[1]) # Kapazität
+                    self.RessourceZuweisen(R_ID,AP_ID,K)
+                
 
     # Vorwärts- und rückwarts-rechnen
     def DurchRechnen(self):
