@@ -133,7 +133,7 @@ class Projekt(object):
             CSV = csv.DictReader(csvfile, delimiter=';', quotechar='"')
             for Zeile in CSV:
                 R_ID=Zeile["ID"]
-                Name="{VN} {NN}".format(VN=Zeile["Vorname"], NN=Zeile["Nachname"])
+                Name=f"{VN} {NN}"
                 self.NeueRessource(R_ID,Name)
                 for AP in Zeile["Arbeitspackete"].split(','):
                     ID_K = AP.split(":", 1) # in ID und Kapazität aufspalten
